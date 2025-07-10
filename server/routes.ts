@@ -81,11 +81,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(session({
     secret: process.env.SESSION_SECRET || "default-secret-key-786110",
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Allow session creation
     cookie: {
       httpOnly: true,
       secure: false, // Set to true in production with HTTPS
       maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+      sameSite: 'lax', // Allow cookies in same-site requests
     },
   }));
 

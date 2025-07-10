@@ -14,14 +14,16 @@ export default function Landing() {
 
   const loginMutation = useMutation({
     mutationFn: async (password: string) => {
-      return apiRequest("POST", "/api/login", { password });
+      const response = await apiRequest("POST", "/api/login", { password });
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Login Successful",
         description: "Welcome to the Loss Prevention Dashboard",
       });
-      window.location.reload();
+      // Force a full page reload to refresh auth state
+      window.location.href = "/";
     },
     onError: (error) => {
       toast({
