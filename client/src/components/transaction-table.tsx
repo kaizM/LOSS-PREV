@@ -25,6 +25,20 @@ export default function TransactionTable() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["/api/transactions", { ...filters, page, limit }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.transactionType) params.append('transactionType', filters.transactionType);
+      if (filters.status) params.append('status', filters.status);
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      
+      const response = await fetch(`/api/transactions?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    },
     refetchInterval: 30000,
   });
 
