@@ -8,18 +8,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PlayCircle, StickyNote } from "lucide-react";
 import { format } from "date-fns";
 import TransactionModal from "./transaction-modal";
-import FilterControls from "./filter-controls";
+// FilterControls removed - now handled by parent component
 import type { Transaction } from "@shared/schema";
 
-export default function TransactionTable() {
+interface TransactionTableProps {
+  filters: {
+    search: string;
+    transactionType: string;
+    status: string;
+  };
+}
+
+export default function TransactionTable({ filters }: TransactionTableProps) {
   const [selectedTransactions, setSelectedTransactions] = useState<number[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    search: "",
-    transactionType: "",
-    status: "",
-  });
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -109,8 +112,6 @@ export default function TransactionTable() {
 
   return (
     <>
-      <FilterControls onFilterChange={setFilters} />
-      
       <Card className="bg-white rounded-lg shadow overflow-hidden">
         <CardHeader className="px-6 py-4 border-b border-gray-200">
           <CardTitle className="text-lg font-semibold text-gray-900">

@@ -13,6 +13,11 @@ import CameraIntegration from "@/components/camera-integration";
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const [filters, setFilters] = useState({
+    search: "",
+    transactionType: "",
+    status: "",
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -111,8 +116,8 @@ export default function Dashboard() {
             </TabsList>
             
             <TabsContent value="transactions" className="space-y-6">
-              <FilterControls />
-              <TransactionTable />
+              <FilterControls onFilterChange={setFilters} />
+              <TransactionTable filters={filters} />
             </TabsContent>
             
             <TabsContent value="upload" className="space-y-6">
