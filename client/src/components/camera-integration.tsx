@@ -37,7 +37,8 @@ export default function CameraIntegration() {
     mutationFn: async (camera: Omit<CameraConfig, "id" | "status">) => {
       return apiRequest("POST", "/api/cameras", camera);
     },
-    onSuccess: (data) => {
+    onSuccess: async (response) => {
+      const data = await response.json();
       toast({
         title: "Camera Added",
         description: "Camera configuration saved successfully.",
@@ -62,12 +63,19 @@ export default function CameraIntegration() {
   });
 
   const testCameraMutation = useMutation({
-    mutationFn: async (cameraId: string) => {
-      return apiRequest("POST", `/api/cameras/${cameraId}/test`);
+    mutationFn: async (camera: CameraConfig) => {
+      return apiRequest("POST", `/api/cameras/${camera.id}/test`, {
+        ip: camera.ip,
+        port: camera.port,
+        username: camera.username,
+        password: camera.password,
+        channel: camera.channel,
+      });
     },
-    onSuccess: (data, cameraId) => {
+    onSuccess: async (response, camera) => {
+      const data = await response.json();
       setCameras(prev => prev.map(cam => 
-        cam.id === cameraId 
+        cam.id === camera.id 
           ? { ...cam, status: data.connected ? "connected" : "disconnected" }
           : cam
       ));
@@ -77,9 +85,9 @@ export default function CameraIntegration() {
         variant: data.connected ? "default" : "destructive",
       });
     },
-    onError: (error, cameraId) => {
+    onError: (error, camera) => {
       setCameras(prev => prev.map(cam => 
-        cam.id === cameraId ? { ...cam, status: "disconnected" } : cam
+        cam.id === camera.id ? { ...cam, status: "disconnected" } : cam
       ));
       toast({
         title: "Test Failed",
@@ -101,11 +109,11 @@ export default function CameraIntegration() {
     addCameraMutation.mutate(newCamera);
   };
 
-  const handleTestCamera = (cameraId: string) => {
+  const handleTestCamera = (camera: CameraConfig) => {
     setCameras(prev => prev.map(cam => 
-      cam.id === cameraId ? { ...cam, status: "testing" } : cam
+      cam.id === camera.id ? { ...cam, status: "testing" } : cam
     ));
-    testCameraMutation.mutate(cameraId);
+    testCameraMutation.mutate(camera);
   };
 
   const getStatusBadge = (status: CameraConfig["status"]) => {
@@ -255,7 +263,7 @@ export default function CameraIntegration() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleTestCamera(camera.id)}
+                      onClick={() => handleTestCamera(camera)}
                       disabled={testCameraMutation.isPending}
                     >
                       <Settings className="h-4 w-4 mr-1" />
