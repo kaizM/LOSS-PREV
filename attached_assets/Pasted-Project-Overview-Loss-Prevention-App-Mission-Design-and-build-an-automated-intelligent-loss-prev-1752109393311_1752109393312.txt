@@ -1,0 +1,194 @@
+Project Overview: Loss Prevention App
+
+Mission:
+Design and build an automated, intelligent loss prevention system for retail or gas station environments that integrates POS data (Gilbarco registers with Modisoft back office) and Alibi surveillance cameras. The system will detect suspicious transactions, capture related video footage, and allow managers to review and receive alerts with minimal manual effort.
+
+Core Objectives:
+
+Automated POS Data Handling
+
+Source: Gilbarco registers synced with Modisoft (via API, scheduled export, or daily file uploads).
+
+Detect suspicious transaction types:
+
+Refunds
+
+Voids
+
+No Sales
+
+Suspended Transactions
+
+Cancellations
+
+Manual Discounts
+
+Employee overrides or repeated patterns
+
+Upload or fetch reports automatically at scheduled times (e.g., end-of-day).
+
+Video Capture and DVR Integration
+
+Challenge: Alibi DVRs are local devices not natively cloud-accessible.
+
+Solutions:
+
+Client Server (Preferred): Set up a lightweight Windows/Linux server on-site that runs:
+
+Alibi Witness (GUI or CLI, if supported)
+
+Local automation script using task scheduler or service to:
+
+Pull saved video clips
+
+Interact with Alibi's local file system or use headless screen automation (AutoHotKey/PyAutoGUI) if needed
+
+VPN Tunnel: Use ZeroTier or Tailscale to allow cloud app to access local DVR using RTSP port 554
+
+Hybrid Fallback: Have DVR auto-record to a shared folder, then scan and pull MP4 clips based on time ranges
+
+Capture 3-minute clip for each flagged transaction:
+
+1 minute before
+
+2 minutes after
+
+Clip naming convention: storeID_date_time_register_eventType.mp4
+
+Web Dashboard (Manager View)
+
+Upload and view flagged POS transactions
+
+Play corresponding video clips from cloud/local
+
+Allow tagging: Approved / Investigate / Escalate
+
+Add internal notes and audit trails
+
+Responsive UI (works on mobile/tablet)
+
+Alerts and Reporting
+
+Automated email/SMS summary daily
+
+Real-time rule-based alerts:
+
+">3 No Sales in 5 mins"
+
+"Refund > $50"
+
+Historical logs, searchable by:
+
+Date, register, employee, type
+
+Weekly/monthly trend analytics
+
+AI-Powered Assistance (Optional Phase 2)
+
+Face detection: Is customer present?
+
+Movement recognition: Did drawer open?
+
+Anomaly detection with OpenCV or YOLO
+
+Visual summary for quick decisions
+
+Technical Stack & Architecture
+
+Frontend
+
+React.js or HTML + Tailwind (Replit friendly)
+
+Embedded video player, filters, and alert panels
+
+Backend
+
+FastAPI or Flask (Python)
+
+REST endpoints for uploading data, clips, notes
+
+File watcher or cron jobs for local syncing
+
+Database
+
+PostgreSQL (cloud) or SQLite (local-only version)
+
+Tables:
+
+transactions, video_clips, alerts, users, notes
+
+Video Tools
+
+ffmpeg for video slicing based on timestamp
+
+OpenCV for later visual analysis
+
+Security
+
+Auth with login roles (Admin, Manager, Viewer)
+
+VPN or local LAN-only access to DVR
+
+Logs + audit trail for all activity
+
+Deployment Strategy
+
+Setup Option
+
+Description
+
+Local Store PC
+
+Full system runs locally; best for stores with no IT staff
+
+Client Server
+
+Alibi DVR + automation script fetches video and pushes to cloud/dashboard
+
+Hybrid with VPN
+
+Replit UI accesses local DVR via Tailscale or ZeroTier tunnel
+
+Manual Upload
+
+Manager uploads DVR clips and POS data; ideal for low-volume testing
+
+Step-by-Step Rollout Plan
+
+Phase 1: MVP
+
+Upload POS report → detect and flag transactions
+
+Allow manual upload of video clip (drag/drop)
+
+Review dashboard with filter and notes
+
+Phase 2: Camera Integration
+
+Script to sync video files based on time
+
+Local Alibi client with automation (AutoHotKey or Python GUI automation)
+
+Save matched video into clip library
+
+Phase 3: Alerts & Automation
+
+Rule-based alerts
+
+Daily automated report
+
+Manager dashboard audit trail
+
+Phase 4 (Optional): AI Video Review
+
+Train models to flag visual events
+
+Motion/no-person detection
+
+Predictive scoring
+
+Summary
+This project will save time, catch loss faster, and empower managers with actionable visual data. It blends real transaction intelligence with secure, automated camera monitoring in one smart platform.
+
+This plan is ready to be pasted into Replit or GitHub as your project foundation. Let me know when you're ready to begin coding or need a sample repo starter!
+
