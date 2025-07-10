@@ -29,6 +29,17 @@ const upload = multer({
 
 // POS data parsing function
 async function parsePOSData(filePath: string): Promise<any[]> {
+  const fileExt = path.extname(filePath).toLowerCase();
+  
+  if (fileExt === '.xls' || fileExt === '.xlsx') {
+    return parseModiSoftData(filePath);
+  } else {
+    return parseCSVData(filePath);
+  }
+}
+
+// Parse CSV data
+async function parseCSVData(filePath: string): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const results: any[] = [];
     fs.createReadStream(filePath)
@@ -43,23 +54,98 @@ async function parsePOSData(filePath: string): Promise<any[]> {
   });
 }
 
+// Parse Modi soft Excel data
+async function parseModiSoftData(filePath: string): Promise<any[]> {
+  try {
+    const XLSX = await import('xlsx');
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Convert to CSV first, then parse
+    const csvData = XLSX.utils.sheet_to_csv(worksheet);
+    const csvPath = filePath.replace(path.extname(filePath), '.csv');
+    fs.writeFileSync(csvPath, csvData);
+    
+    // Parse the CSV data
+    const results: any[] = [];
+    let headerFound = false;
+    
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(csvPath)
+        .pipe(parse({
+          columns: false,
+          skip_empty_lines: true,
+          trim: true,
+        }))
+        .on('data', (row) => {
+          // Look for header row
+          if (!headerFound && row.includes('Tran Date')) {
+            headerFound = true;
+            return;
+          }
+          
+          // Process data rows after header
+          if (headerFound && row[0] && row[0] !== 'Tran Date' && !row[0].includes('Sale Transactions')) {
+            const [tranDate, tranType, tender, gross, discount, tax, net, tipAmount, onlineCharges, cashierName, tranId] = row;
+            
+            // Skip empty rows
+            if (!tranDate || !tranType) return;
+            
+            results.push({
+              'Tran Date': tranDate,
+              'Tran Type': tranType,
+              'Tender': tender,
+              'Gross': gross,
+              'Discount': discount,
+              'Tax': tax,
+              'Net': net,
+              'Tip Amount': tipAmount,
+              'Online Charges': onlineCharges,
+              'Cashier Name': cashierName,
+              'Tran ID': tranId,
+            });
+          }
+        })
+        .on('end', () => resolve(results))
+        .on('error', reject);
+    });
+  } catch (error) {
+    console.error('Error parsing Modi soft data:', error);
+    throw error;
+  }
+}
+
 // Transaction flagging logic
 function flagTransaction(transactionData: any): { isFlagged: boolean; reason?: string } {
-  const { transactionType, amount } = transactionData;
-  const amountNum = parseFloat(amount);
+  // Handle Modi soft format
+  const tranType = transactionData['Tran Type'] || transactionData.transactionType;
+  const gross = transactionData['Gross'] || transactionData.amount;
+  const net = transactionData['Net'] || transactionData.amount;
+  
+  // Clean up amount (remove $ and convert to number)
+  const grossAmount = parseFloat(gross?.toString().replace(/[$,]/g, '') || '0');
+  const netAmount = parseFloat(net?.toString().replace(/[$,]/g, '') || '0');
   
   // Flag suspicious transaction types
   const suspiciousTypes = ['refund', 'void', 'no sale', 'cancellation', 'manual discount'];
-  if (suspiciousTypes.includes(transactionType.toLowerCase())) {
-    if (transactionType.toLowerCase() === 'refund' && amountNum > 50) {
+  
+  if (tranType && suspiciousTypes.includes(tranType.toLowerCase())) {
+    if (tranType.toLowerCase() === 'refund' && grossAmount > 50) {
       return { isFlagged: true, reason: 'High value refund' };
     }
-    if (transactionType.toLowerCase() === 'void' && amountNum > 100) {
+    if (tranType.toLowerCase() === 'void' && grossAmount > 100) {
       return { isFlagged: true, reason: 'High value void' };
     }
-    if (suspiciousTypes.includes(transactionType.toLowerCase())) {
-      return { isFlagged: true, reason: 'Suspicious transaction type' };
+    if (tranType.toLowerCase() === 'no sale') {
+      return { isFlagged: true, reason: 'No sale transaction' };
     }
+    return { isFlagged: true, reason: 'Suspicious transaction type' };
+  }
+  
+  // Flag high value transactions
+  if (grossAmount > 200) {
+    return { isFlagged: true, reason: 'High value transaction' };
   }
   
   return { isFlagged: false };
@@ -218,44 +304,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const filePath = req.file.path;
-      const posData = await parsePOSData(filePath);
+      const fileExt = path.extname(req.file.originalname).toLowerCase();
+      
+      console.log(`Processing file: ${req.file.originalname}, extension: ${fileExt}`);
+      
+      let posData;
+      
+      try {
+        posData = await parsePOSData(filePath);
+        console.log(`Parsed ${posData.length} rows from file`);
+      } catch (parseError) {
+        console.error("Error parsing file:", parseError);
+        // Clean up uploaded file
+        fs.unlinkSync(filePath);
+        return res.status(400).json({ 
+          message: "Failed to parse file. Please ensure it's a valid CSV or Excel file.",
+          error: parseError.message
+        });
+      }
       
       const createdTransactions = [];
+      const processedCount = posData.length;
+      
       for (const row of posData) {
-        // Map CSV columns to transaction fields
-        const transactionData = {
-          transactionId: row.transaction_id || row.TransactionID || row.id,
-          date: new Date(row.date || row.Date || row.timestamp),
-          registerId: row.register_id || row.RegisterID || row.register,
-          employeeName: row.employee_name || row.Employee || row.cashier,
-          transactionType: row.transaction_type || row.Type || row.type,
-          amount: row.amount || row.Amount || row.total,
-          storeId: row.store_id || row.StoreID || "001",
-        };
-        
-        // Flag suspicious transactions
-        const { isFlagged, reason } = flagTransaction(transactionData);
-        
-        const transaction = await storage.createTransaction({
-          ...transactionData,
-          isFlagged,
-          flaggedReason: reason,
-          status: isFlagged ? "pending" : "approved",
-        });
-        
-        createdTransactions.push(transaction);
+        try {
+          // Handle Modi soft format vs standard CSV
+          const isModiSoft = row['Tran Date'] && row['Tran Type'];
+          
+          let transactionData;
+          if (isModiSoft) {
+            // Parse Modi soft date format (7/8/25 23:51)
+            const tranDate = new Date(row['Tran Date']);
+            const grossAmount = row['Gross'] ? row['Gross'].toString().replace(/[$,]/g, '') : '0';
+            
+            transactionData = {
+              transactionId: row['Tran ID'] || `T${Date.now()}${Math.floor(Math.random() * 1000)}`,
+              date: tranDate,
+              amount: grossAmount,
+              transactionType: row['Tran Type'] || 'sale',
+              registerId: 'REG001',
+              employeeId: 'EMP001',
+              employeeName: row['Cashier Name'] || 'Unknown',
+              customerId: null,
+              description: `Modi soft transaction - ${row['Tender'] || 'Unknown payment'}`,
+              paymentMethod: row['Tender'] || 'cash',
+              status: 'pending',
+              flaggedAt: new Date(),
+              flaggedBy: req.user?.id || 'system',
+              flaggedByName: req.user?.firstName && req.user?.lastName 
+                ? `${req.user.firstName} ${req.user.lastName}`
+                : 'System',
+            };
+          } else {
+            // Standard CSV format
+            transactionData = {
+              transactionId: row.transaction_id || row.TransactionID || row.id || `T${Date.now()}${Math.floor(Math.random() * 1000)}`,
+              date: new Date(row.date || row.Date || row.timestamp),
+              amount: row.amount || row.Amount || row.total || '0',
+              transactionType: row.transaction_type || row.Type || row.type || 'sale',
+              registerId: row.register_id || row.RegisterID || row.register || 'REG001',
+              employeeId: row.employee_id || row.EmployeeID || 'EMP001',
+              employeeName: row.employee_name || row.Employee || row.cashier || 'Unknown',
+              customerId: row.customer_id || null,
+              description: row.description || 'POS Transaction',
+              paymentMethod: row.payment_method || row.tender || 'cash',
+              status: 'pending',
+              flaggedAt: new Date(),
+              flaggedBy: req.user?.id || 'system',
+              flaggedByName: req.user?.firstName && req.user?.lastName 
+                ? `${req.user.firstName} ${req.user.lastName}`
+                : 'System',
+            };
+          }
+          
+          // Flag suspicious transactions
+          const { isFlagged, reason } = flagTransaction(row);
+          
+          if (isFlagged) {
+            transactionData.isFlagged = true;
+            transactionData.flagReason = reason;
+            
+            const transaction = await storage.createTransaction(transactionData);
+            createdTransactions.push(transaction);
+          }
+        } catch (rowError) {
+          console.error("Error processing row:", rowError, "Row data:", row);
+          // Continue processing other rows
+        }
       }
       
       // Clean up uploaded file
       fs.unlinkSync(filePath);
       
       res.json({
-        message: `Successfully processed ${createdTransactions.length} transactions`,
+        message: `Successfully processed ${processedCount} transactions (${createdTransactions.length} flagged)`,
         transactions: createdTransactions,
+        totalProcessed: processedCount,
+        flaggedCount: createdTransactions.length,
       });
     } catch (error) {
       console.error("Error processing POS data:", error);
-      res.status(500).json({ message: "Failed to process POS data" });
+      // Clean up uploaded file if it exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ message: "Failed to process POS data: " + error.message });
     }
   });
 
