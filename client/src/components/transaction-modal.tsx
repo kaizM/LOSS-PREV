@@ -25,6 +25,12 @@ export default function TransactionModal({ transaction, isOpen, onClose }: Trans
 
   const { data: transactionData, isLoading } = useQuery({
     queryKey: ["/api/transactions", transaction?.id],
+    queryFn: async () => {
+      if (!transaction?.id) throw new Error("No transaction ID");
+      const response = await fetch(`/api/transactions/${transaction.id}`);
+      if (!response.ok) throw new Error("Failed to fetch transaction");
+      return response.json();
+    },
     enabled: !!transaction?.id && isOpen,
   });
 

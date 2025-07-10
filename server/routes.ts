@@ -126,6 +126,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/transactions/:id', noAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid transaction ID" });
+      }
+      
       const transaction = await storage.getTransaction(id);
       
       if (!transaction) {
@@ -152,6 +157,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/transactions/:id/status', noAuth, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid transaction ID" });
+      }
+      
       const { status } = req.body;
       const user = req.user;
       
