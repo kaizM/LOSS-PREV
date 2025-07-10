@@ -7,7 +7,6 @@ import path from "path";
 import fs from "fs";
 import { parse } from "csv-parse";
 import session from "express-session";
-import connectPg from "connect-pg-simple";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -68,6 +67,7 @@ function flagTransaction(transactionData: any): { isFlagged: boolean; reason?: s
 
 // Simple authentication middleware
 const isAuthenticated = (req: any, res: any, next: any) => {
+  console.log('Auth check - Session:', req.session?.authenticated, 'User:', req.session?.user?.id);
   if (req.session?.authenticated) {
     return next();
   }
@@ -75,18 +75,11 @@ const isAuthenticated = (req: any, res: any, next: any) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Session configuration
+  // Session configuration - using memory store for simplicity
   app.set("trust proxy", 1);
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true,
-    ttl: 7 * 24 * 60 * 60 * 1000, // 1 week
-  });
-
+  
   app.use(session({
-    store: sessionStore,
-    secret: process.env.SESSION_SECRET || "default-secret-key",
+    secret: process.env.SESSION_SECRET || "default-secret-key-786110",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -100,6 +93,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/login', async (req: any, res) => {
     try {
       const { password } = req.body;
+      console.log('Login attempt with password:', password);
+      
       if (password === "786110") {
         req.session.authenticated = true;
         req.session.user = {
@@ -110,7 +105,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           role: "manager",
           storeId: "001",
         };
-        res.json({ success: true });
+        
+        // Explicitly save the session
+        req.session.save((err: any) => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ message: "Session save failed" });
+          }
+          console.log('Session saved successfully');
+          res.json({ success: true });
+        });
       } else {
         res.status(401).json({ message: "Invalid password" });
       }
