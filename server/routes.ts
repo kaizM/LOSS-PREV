@@ -154,6 +154,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export transactions
+  app.get('/api/transactions/export', noAuth, async (req, res) => {
+    try {
+      const { search, transactionType, status, format = 'csv' } = req.query;
+      
+      const result = await storage.getTransactions({
+        search: search as string,
+        transactionType: transactionType as string,
+        status: status as string,
+        limit: 10000, // Large limit for export
+        offset: 0,
+      });
+
+      if (format === 'csv') {
+        const csvHeader = 'Transaction ID,Date,Register ID,Employee,Type,Amount,Status,Flagged,Reason\n';
+        const csvRows = result.transactions.map(t => 
+          `"${t.transactionId}","${t.date}","${t.registerId}","${t.employeeName}","${t.transactionType}","${t.amount}","${t.status}","${t.isFlagged}","${t.flaggedReason || ''}"`
+        ).join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="transactions-${new Date().toISOString().split('T')[0]}.csv"`);
+        res.send(csvHeader + csvRows);
+      } else {
+        res.json(result);
+      }
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      res.status(500).json({ message: "Failed to export transactions" });
+    }
+  });
+
   app.patch('/api/transactions/:id/status', noAuth, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);

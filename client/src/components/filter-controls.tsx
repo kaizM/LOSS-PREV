@@ -26,9 +26,43 @@ export default function FilterControls({ onFilterChange }: FilterControlsProps) 
     });
   };
 
-  const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log("Export functionality not implemented yet");
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    // Auto-filter on search input
+    onFilterChange({
+      search: e.target.value,
+      transactionType: transactionType === "all" ? "" : transactionType,
+      status: status === "all" ? "" : status,
+    });
+  };
+
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (transactionType && transactionType !== "all") params.append('transactionType', transactionType);
+      if (status && status !== "all") params.append('status', status);
+      params.append('format', 'csv');
+
+      const response = await fetch(`/api/transactions/export?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Export failed. Please try again.');
+    }
   };
 
   return (
@@ -42,11 +76,18 @@ export default function FilterControls({ onFilterChange }: FilterControlsProps) 
                 type="text"
                 placeholder="Search transactions..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={handleSearchChange}
                 className="pl-10"
               />
             </div>
-            <Select value={transactionType} onValueChange={setTransactionType}>
+            <Select value={transactionType} onValueChange={(value) => {
+              setTransactionType(value);
+              onFilterChange({
+                search,
+                transactionType: value === "all" ? "" : value,
+                status: status === "all" ? "" : status,
+              });
+            }}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="All Transaction Types" />
               </SelectTrigger>
@@ -59,7 +100,14 @@ export default function FilterControls({ onFilterChange }: FilterControlsProps) 
                 <SelectItem value="manual discount">Manual Discounts</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status} onValueChange={(value) => {
+              setStatus(value);
+              onFilterChange({
+                search,
+                transactionType: transactionType === "all" ? "" : transactionType,
+                status: value === "all" ? "" : value,
+              });
+            }}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
