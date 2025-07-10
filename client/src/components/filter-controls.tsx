@@ -21,8 +21,8 @@ export default function FilterControls({ onFilterChange }: FilterControlsProps) 
   const handleFilterChange = () => {
     onFilterChange({
       search,
-      transactionType,
-      status,
+      transactionType: transactionType === "all" ? "" : transactionType,
+      status: status === "all" ? "" : status,
     });
   };
 
@@ -51,7 +51,7 @@ export default function FilterControls({ onFilterChange }: FilterControlsProps) 
                 <SelectValue placeholder="All Transaction Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Transaction Types</SelectItem>
+                <SelectItem value="all">All Transaction Types</SelectItem>
                 <SelectItem value="refund">Refunds</SelectItem>
                 <SelectItem value="void">Voids</SelectItem>
                 <SelectItem value="no sale">No Sales</SelectItem>
@@ -64,7 +64,7 @@ export default function FilterControls({ onFilterChange }: FilterControlsProps) 
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="investigate">Investigate</SelectItem>

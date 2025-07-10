@@ -65,79 +65,26 @@ function flagTransaction(transactionData: any): { isFlagged: boolean; reason?: s
   return { isFlagged: false };
 }
 
-// Simple authentication middleware
-const isAuthenticated = (req: any, res: any, next: any) => {
-  console.log('Auth check - Session:', req.session?.authenticated, 'User:', req.session?.user?.id);
-  if (req.session?.authenticated) {
-    return next();
-  }
-  return res.status(401).json({ message: "Unauthorized" });
+// No authentication needed - direct access
+const noAuth = (req: any, res: any, next: any) => {
+  // Set a default user for the session
+  req.user = {
+    id: "manager",
+    email: "manager@store.com",
+    firstName: "Store",
+    lastName: "Manager",
+    role: "manager",
+    storeId: "001",
+  };
+  return next();
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Session configuration - using memory store for simplicity
-  app.set("trust proxy", 1);
-  
-  app.use(session({
-    secret: process.env.SESSION_SECRET || "default-secret-key-786110",
-    resave: false,
-    saveUninitialized: true, // Allow session creation
-    cookie: {
-      httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-      sameSite: 'lax', // Allow cookies in same-site requests
-    },
-  }));
+  // No authentication needed - direct access to dashboard
 
-  // Auth routes
-  app.post('/api/login', async (req: any, res) => {
+  app.get('/api/auth/user', noAuth, async (req: any, res) => {
     try {
-      const { password } = req.body;
-      console.log('Login attempt with password:', password);
-      
-      if (password === "786110") {
-        req.session.authenticated = true;
-        req.session.user = {
-          id: "manager",
-          email: "manager@store.com",
-          firstName: "Store",
-          lastName: "Manager",
-          role: "manager",
-          storeId: "001",
-        };
-        
-        // Explicitly save the session
-        req.session.save((err: any) => {
-          if (err) {
-            console.error('Session save error:', err);
-            return res.status(500).json({ message: "Session save failed" });
-          }
-          console.log('Session saved successfully');
-          res.json({ success: true });
-        });
-      } else {
-        res.status(401).json({ message: "Invalid password" });
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Login failed" });
-    }
-  });
-
-  app.post('/api/logout', (req: any, res) => {
-    req.session.destroy((err: any) => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.json({ success: true });
-    });
-  });
-
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      res.json(req.session.user);
+      res.json(req.user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -145,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard statistics
-  app.get('/api/stats', isAuthenticated, async (req, res) => {
+  app.get('/api/stats', noAuth, async (req, res) => {
     try {
       const stats = await storage.getStats();
       res.json(stats);
@@ -156,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Transactions routes
-  app.get('/api/transactions', isAuthenticated, async (req, res) => {
+  app.get('/api/transactions', noAuth, async (req, res) => {
     try {
       const { search, transactionType, status, page = "1", limit = "10" } = req.query;
       const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -176,7 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/transactions/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/transactions/:id', noAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const transaction = await storage.getTransaction(id);
@@ -202,11 +149,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/transactions/:id/status', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/transactions/:id/status', noAuth, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
-      const user = req.session.user;
+      const user = req.user;
       
       const transaction = await storage.updateTransactionStatus(
         id,
@@ -223,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POS data upload
-  app.post('/api/upload/pos', isAuthenticated, upload.single('posFile'), async (req: any, res) => {
+  app.post('/api/upload/pos', noAuth, upload.single('posFile'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -272,14 +219,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Video upload
-  app.post('/api/upload/video', isAuthenticated, upload.single('videoFile'), async (req: any, res) => {
+  app.post('/api/upload/video', noAuth, upload.single('videoFile'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
       
       const { transactionId } = req.body;
-      const user = req.session.user;
+      const user = req.user;
       
       const videoClip = await storage.createVideoClip({
         transactionId: transactionId ? parseInt(transactionId) : undefined,
@@ -298,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Video streaming
-  app.get('/api/video/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/video/:id', noAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const videoClip = await storage.getVideoClip(id);
@@ -340,11 +287,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Notes
-  app.post('/api/transactions/:id/notes', isAuthenticated, async (req: any, res) => {
+  app.post('/api/transactions/:id/notes', noAuth, async (req: any, res) => {
     try {
       const transactionId = parseInt(req.params.id);
       const { content } = req.body;
-      const user = req.session.user;
+      const user = req.user;
       
       const note = await storage.createNote({
         transactionId,
