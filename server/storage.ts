@@ -87,9 +87,6 @@ export class DatabaseStorage implements IStorage {
   } = {}): Promise<{ transactions: Transaction[]; total: number }> {
     const { search, transactionType, status, limit = 10, offset = 0 } = filters;
     
-    let query = db.select().from(transactions);
-    let countQuery = db.select({ count: count() }).from(transactions);
-    
     const conditions = [];
     if (search) {
       conditions.push(
@@ -107,14 +104,18 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(transactions.status, status));
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-      countQuery = countQuery.where(and(...conditions));
-    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     
     const [transactionsResult, totalResult] = await Promise.all([
-      query.orderBy(desc(transactions.date)).limit(limit).offset(offset),
-      countQuery,
+      db.select()
+        .from(transactions)
+        .where(whereClause)
+        .orderBy(desc(transactions.date))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: count() })
+        .from(transactions)
+        .where(whereClause),
     ]);
     
     return {

@@ -1,10 +1,42 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Shield, Video, FileText, Users } from "lucide-react";
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
+  const [password, setPassword] = useState("");
+  const { toast } = useToast();
+
+  const loginMutation = useMutation({
+    mutationFn: async (password: string) => {
+      return apiRequest("POST", "/api/login", { password });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Login Successful",
+        description: "Welcome to the Loss Prevention Dashboard",
+      });
+      window.location.reload();
+    },
+    onError: (error) => {
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password) {
+      loginMutation.mutate(password);
+    }
   };
 
   return (
@@ -19,9 +51,37 @@ export default function Landing() {
             Automated intelligent loss prevention system for retail environments. 
             Detect suspicious transactions and review security footage with ease.
           </p>
-          <Button onClick={handleLogin} size="lg" className="bg-primary hover:bg-primary/90">
-            Sign In to Dashboard
-          </Button>
+          
+          <Card className="max-w-md mx-auto mb-8">
+            <CardHeader>
+              <CardTitle className="text-center">Manager Login</CardTitle>
+              <CardDescription className="text-center">
+                Enter your password to access the dashboard
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    required
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary/90"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? "Signing In..." : "Sign In"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">

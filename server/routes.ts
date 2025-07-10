@@ -1,12 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertTransactionSchema, insertVideoClipSchema, insertNoteSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { parse } from "csv-parse";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -65,16 +66,73 @@ function flagTransaction(transactionData: any): { isFlagged: boolean; reason?: s
   return { isFlagged: false };
 }
 
+// Simple authentication middleware
+const isAuthenticated = (req: any, res: any, next: any) => {
+  if (req.session?.authenticated) {
+    return next();
+  }
+  return res.status(401).json({ message: "Unauthorized" });
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Session configuration
+  app.set("trust proxy", 1);
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true,
+    ttl: 7 * 24 * 60 * 60 * 1000, // 1 week
+  });
+
+  app.use(session({
+    store: sessionStore,
+    secret: process.env.SESSION_SECRET || "default-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false, // Set to true in production with HTTPS
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+    },
+  }));
 
   // Auth routes
+  app.post('/api/login', async (req: any, res) => {
+    try {
+      const { password } = req.body;
+      if (password === "786110") {
+        req.session.authenticated = true;
+        req.session.user = {
+          id: "manager",
+          email: "manager@store.com",
+          firstName: "Store",
+          lastName: "Manager",
+          role: "manager",
+          storeId: "001",
+        };
+        res.json({ success: true });
+      } else {
+        res.status(401).json({ message: "Invalid password" });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post('/api/logout', (req: any, res) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
+      res.json(req.session.user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -143,17 +201,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+      const user = req.session.user;
       
       const transaction = await storage.updateTransactionStatus(
         id,
         status,
-        userId,
+        user.id,
         `${user.firstName} ${user.lastName}`.trim() || user.email || 'Manager'
       );
       
@@ -221,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { transactionId } = req.body;
-      const userId = req.user.claims.sub;
+      const user = req.session.user;
       
       const videoClip = await storage.createVideoClip({
         transactionId: transactionId ? parseInt(transactionId) : undefined,
@@ -229,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         originalName: req.file.originalname,
         filePath: req.file.path,
         fileSize: req.file.size,
-        uploadedBy: userId,
+        uploadedBy: user.id,
       });
       
       res.json(videoClip);
@@ -286,17 +339,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const transactionId = parseInt(req.params.id);
       const { content } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+      const user = req.session.user;
       
       const note = await storage.createNote({
         transactionId,
         content,
-        authorId: userId,
+        authorId: user.id,
         authorName: `${user.firstName} ${user.lastName}`.trim() || user.email || 'Manager',
       });
       
