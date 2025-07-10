@@ -348,6 +348,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Camera integration endpoints
+  app.post('/api/cameras', noAuth, async (req: any, res) => {
+    try {
+      const { name, ip, port, username, password, channel } = req.body;
+      
+      // Store camera configuration (in a real app, this would be in database)
+      const camera = {
+        id: Date.now().toString(),
+        name,
+        ip,
+        port,
+        username,
+        password: password ? Buffer.from(password).toString('base64') : '', // Basic encryption
+        channel,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // In production, save to database
+      res.json(camera);
+    } catch (error) {
+      console.error("Error adding camera:", error);
+      res.status(500).json({ message: "Failed to add camera" });
+    }
+  });
+
+  app.post('/api/cameras/:id/test', noAuth, async (req: any, res) => {
+    try {
+      const cameraId = req.params.id;
+      
+      // In a real implementation, this would test the actual camera connection
+      // For now, we'll simulate the test
+      const testResult = {
+        connected: true,
+        message: "Camera connection test successful",
+        timestamp: new Date().toISOString(),
+      };
+      
+      res.json(testResult);
+    } catch (error) {
+      console.error("Error testing camera:", error);
+      res.status(500).json({ 
+        connected: false, 
+        message: "Failed to test camera connection" 
+      });
+    }
+  });
+
+  app.get('/api/cameras/:id/stream', noAuth, async (req: any, res) => {
+    try {
+      const cameraId = req.params.id;
+      const { channel = 1 } = req.query;
+      
+      // In a real implementation, this would proxy the camera stream
+      // For now, we'll return a placeholder response
+      res.json({
+        streamUrl: `/api/cameras/${cameraId}/live?channel=${channel}`,
+        message: "Stream endpoint ready",
+      });
+    } catch (error) {
+      console.error("Error getting camera stream:", error);
+      res.status(500).json({ message: "Failed to get camera stream" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

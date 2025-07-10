@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, User, LogOut } from "lucide-react";
+import { Shield, User, LogOut, FileSpreadsheet, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatsOverview from "@/components/stats-overview";
 import UploadSection from "@/components/upload-section";
 import FilterControls from "@/components/filter-controls";
 import TransactionTable from "@/components/transaction-table";
+import CameraIntegration from "@/components/camera-integration";
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -92,9 +94,36 @@ export default function Dashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <StatsOverview />
-        <UploadSection />
-        <TransactionTable />
+        <div className="space-y-8">
+          <StatsOverview />
+          
+          <Tabs defaultValue="transactions" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="upload">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Upload Data
+              </TabsTrigger>
+              <TabsTrigger value="cameras">
+                <Camera className="h-4 w-4 mr-2" />
+                Camera System
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="transactions" className="space-y-6">
+              <FilterControls />
+              <TransactionTable />
+            </TabsContent>
+            
+            <TabsContent value="upload" className="space-y-6">
+              <UploadSection />
+            </TabsContent>
+            
+            <TabsContent value="cameras" className="space-y-6">
+              <CameraIntegration />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </div>
   );
