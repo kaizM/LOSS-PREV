@@ -58,12 +58,12 @@ async function parseCSVData(filePath: string): Promise<any[]> {
 async function parseModiSoftData(filePath: string): Promise<any[]> {
   try {
     const XLSX = await import('xlsx');
-    const workbook = XLSX.readFile(filePath);
+    const workbook = XLSX.default.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
     // Convert to CSV first, then parse
-    const csvData = XLSX.utils.sheet_to_csv(worksheet);
+    const csvData = XLSX.default.utils.sheet_to_csv(worksheet);
     const csvPath = filePath.replace(path.extname(filePath), '.csv');
     fs.writeFileSync(csvPath, csvData);
     
