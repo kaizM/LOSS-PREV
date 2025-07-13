@@ -7,11 +7,21 @@ import path from "path";
 import fs from "fs";
 import { parse } from "csv-parse";
 import session from "express-session";
+import crypto from "crypto";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Store file hashes to detect duplicates
+const uploadedFileHashes = new Set<string>();
+
+// Generate file hash for duplicate detection
+function generateFileHash(filePath: string): string {
+  const fileBuffer = fs.readFileSync(filePath);
+  return crypto.createHash('sha256').update(fileBuffer).digest('hex');
 }
 
 const upload = multer({
@@ -305,6 +315,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const filePath = req.file.path;
       const fileExt = path.extname(req.file.originalname).toLowerCase();
+      
+      // Check for duplicate file
+      const fileHash = generateFileHash(filePath);
+      if (uploadedFileHashes.has(fileHash)) {
+        // Clean up duplicate file
+        fs.unlinkSync(filePath);
+        return res.status(409).json({ 
+          message: "Duplicate file detected! This file has already been uploaded.", 
+          isDuplicate: true 
+        });
+      }
+      
+      // Add hash to set to track uploaded files
+      uploadedFileHashes.add(fileHash);
       
       console.log(`Processing file: ${req.file.originalname}, extension: ${fileExt}`);
       

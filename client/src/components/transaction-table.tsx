@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
-  const limit = 10;
+  const limit = 20;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["/api/transactions", { ...filters, page, limit }],
@@ -195,106 +195,103 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
                   </TableRow>
                 ) : (
                   groupTransactionsByDate(data?.transactions || []).map(([dateKey, transactions]) => (
-                    <Collapsible key={dateKey} open={isDateExpanded(dateKey)} onOpenChange={() => toggleDateExpansion(dateKey)}>
+                    <React.Fragment key={dateKey}>
                       {/* Date Header Row */}
-                      <CollapsibleTrigger asChild>
-                        <TableRow className="bg-blue-50 hover:bg-blue-100 cursor-pointer">
-                          <TableCell colSpan={9} className="py-4 px-6">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                {isDateExpanded(dateKey) ? (
-                                  <ChevronDown className="h-5 w-5 text-blue-700" />
-                                ) : (
-                                  <ChevronRight className="h-5 w-5 text-blue-700" />
-                                )}
-                                <h3 className="text-lg font-semibold text-blue-900">
-                                  {format(new Date(dateKey), 'EEEE, MMMM d, yyyy')}
-                                </h3>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Badge className="bg-blue-100 text-blue-800">
-                                  {transactions.length} transactions
-                                </Badge>
-                                <Badge className="bg-red-100 text-red-800">
-                                  {transactions.filter(t => t.status === 'pending').length} pending
-                                </Badge>
-                              </div>
+                      <TableRow 
+                        className="bg-blue-50 hover:bg-blue-100 cursor-pointer" 
+                        onClick={() => toggleDateExpansion(dateKey)}
+                      >
+                        <TableCell colSpan={9} className="py-4 px-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              {isDateExpanded(dateKey) ? (
+                                <ChevronDown className="h-5 w-5 text-blue-700" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5 text-blue-700" />
+                              )}
+                              <h3 className="text-lg font-semibold text-blue-900">
+                                {format(new Date(dateKey), 'EEEE, MMMM d, yyyy')}
+                              </h3>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge className="bg-blue-100 text-blue-800">
+                                {transactions.length} transactions
+                              </Badge>
+                              <Badge className="bg-red-100 text-red-800">
+                                {transactions.filter(t => t.status === 'pending').length} pending
+                              </Badge>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Transactions for this date */}
+                      {isDateExpanded(dateKey) && transactions.map((transaction) => (
+                        <TableRow key={transaction.id} className="hover:bg-gray-50">
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedTransactions.includes(transaction.id)}
+                              onCheckedChange={() => handleTransactionSelect(transaction.id)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-gray-900">
+                              {format(new Date(transaction.date), "HH:mm:ss")}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {transaction.transactionId}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-900">
+                            {transaction.registerId}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-900">
+                            {transaction.employeeName}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getTransactionTypeBadgeVariant(transaction.transactionType)}>
+                              {transaction.transactionType}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-900 font-medium">
+                            ${parseFloat(transaction.amount).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadgeVariant(transaction.status)}>
+                              {transaction.status === "pending" ? "Pending Review" : transaction.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-primary hover:text-primary/80"
+                            >
+                              <PlayCircle className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleReviewTransaction(transaction)}
+                                className="text-primary hover:text-primary/80"
+                              >
+                                Review
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-600 hover:text-gray-800"
+                              >
+                                <StickyNote className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                      </CollapsibleTrigger>
-                      
-                      {/* Transactions for this date */}
-                      <CollapsibleContent asChild>
-                        <>
-                          {transactions.map((transaction) => (
-                            <TableRow key={transaction.id} className="hover:bg-gray-50">
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedTransactions.includes(transaction.id)}
-                                  onCheckedChange={() => handleTransactionSelect(transaction.id)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-900">
-                                  {format(new Date(transaction.date), "HH:mm:ss")}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {transaction.transactionId}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm text-gray-900">
-                                {transaction.registerId}
-                              </TableCell>
-                              <TableCell className="text-sm text-gray-900">
-                                {transaction.employeeName}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={getTransactionTypeBadgeVariant(transaction.transactionType)}>
-                                  {transaction.transactionType}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-sm text-gray-900 font-medium">
-                                ${parseFloat(transaction.amount).toFixed(2)}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={getStatusBadgeVariant(transaction.status)}>
-                                  {transaction.status === "pending" ? "Pending Review" : transaction.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-primary hover:text-primary/80"
-                                >
-                                  <PlayCircle className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center space-x-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleReviewTransaction(transaction)}
-                                    className="text-primary hover:text-primary/80"
-                                  >
-                                    Review
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-gray-600 hover:text-gray-800"
-                                  >
-                                    <StickyNote className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </>
-                      </CollapsibleContent>
-                    </Collapsible>
+                      ))}
+                    </React.Fragment>
                   ))
                 )}
               </TableBody>
@@ -322,7 +319,7 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
                     Previous
                   </Button>
                   {Array.from({ length: Math.ceil(data.total / limit) }, (_, i) => i + 1)
-                    .slice(Math.max(0, page - 3), Math.min(Math.ceil(data.total / limit), page + 2))
+                    .slice(Math.max(0, page - 2), Math.min(Math.ceil(data.total / limit), page + 3))
                     .map((pageNum) => (
                       <Button
                         key={pageNum}
