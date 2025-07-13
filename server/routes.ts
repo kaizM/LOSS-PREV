@@ -201,15 +201,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Transactions routes
   app.get('/api/transactions', noAuth, async (req, res) => {
     try {
-      const { search, transactionType, status, page = "1", limit = "10" } = req.query;
-      const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+      const { search, transactionType, status } = req.query;
       
       const result = await storage.getTransactions({
         search: search as string,
         transactionType: transactionType as string,
         status: status as string,
-        limit: parseInt(limit as string),
-        offset,
       });
       
       res.json(result);

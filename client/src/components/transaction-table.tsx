@@ -24,19 +24,15 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
   const [selectedTransactions, setSelectedTransactions] = useState<number[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [page, setPage] = useState(1);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
-  const limit = 20;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["/api/transactions", { ...filters, page, limit }],
+    queryKey: ["/api/transactions", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.search) params.append('search', filters.search);
       if (filters.transactionType) params.append('transactionType', filters.transactionType);
       if (filters.status) params.append('status', filters.status);
-      params.append('page', page.toString());
-      params.append('limit', limit.toString());
       
       const response = await fetch(`/api/transactions?${params.toString()}`);
       if (!response.ok) {
@@ -116,7 +112,7 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
     }
   };
 
-  // Group transactions by date
+  // Group transactions by date and sort by date (newest first)
   const groupTransactionsByDate = (transactions: Transaction[]) => {
     const groups = new Map<string, Transaction[]>();
     
@@ -128,7 +124,13 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
       groups.get(dateKey)!.push(transaction);
     });
     
-    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+    // Sort dates in descending order (newest first) and sort transactions within each date
+    return Array.from(groups.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, transactions]) => [
+        date,
+        transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      ] as [string, Transaction[]]);
   };
 
   if (error) {
@@ -298,47 +300,11 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
             </Table>
           </div>
           
-          {/* Pagination */}
+          {/* Summary */}
           {data && data.total > 0 && (
-            <div className="px-6 py-4 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{" "}
-                  <span className="font-medium">
-                    {Math.min(page * limit, data.total)}
-                  </span>{" "}
-                  of <span className="font-medium">{data.total}</span> results
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    Previous
-                  </Button>
-                  {Array.from({ length: Math.ceil(data.total / limit) }, (_, i) => i + 1)
-                    .slice(Math.max(0, page - 2), Math.min(Math.ceil(data.total / limit), page + 3))
-                    .map((pageNum) => (
-                      <Button
-                        key={pageNum}
-                        variant={page === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setPage(pageNum)}
-                      >
-                        {pageNum}
-                      </Button>
-                    ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.min(Math.ceil(data.total / limit), p + 1))}
-                    disabled={page === Math.ceil(data.total / limit)}
-                  >
-                    Next
-                  </Button>
-                </div>
+            <div className="flex items-center justify-center px-6 py-4 border-t">
+              <div className="text-sm text-gray-600">
+                Showing all {data.total} transactions
               </div>
             </div>
           )}

@@ -82,10 +82,8 @@ export class DatabaseStorage implements IStorage {
     search?: string;
     transactionType?: string;
     status?: string;
-    limit?: number;
-    offset?: number;
   } = {}): Promise<{ transactions: Transaction[]; total: number }> {
-    const { search, transactionType, status, limit = 10, offset = 0 } = filters;
+    const { search, transactionType, status } = filters;
     
     const conditions = [];
     if (search) {
@@ -110,9 +108,7 @@ export class DatabaseStorage implements IStorage {
       db.select()
         .from(transactions)
         .where(whereClause)
-        .orderBy(desc(transactions.date))
-        .limit(limit)
-        .offset(offset),
+        .orderBy(desc(transactions.date)),
       db.select({ count: count() })
         .from(transactions)
         .where(whereClause),
