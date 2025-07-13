@@ -21,9 +21,16 @@ export default function UploadSection() {
     },
     onSuccess: async (response) => {
       const result = await response.json();
+      let description = result.message;
+      
+      // Add AI analysis summary if available
+      if (result.aiAnalysis) {
+        description += `\n\nAI Analysis: ${result.aiAnalysis.totalSuspicious} suspicious transactions found, ${result.aiAnalysis.highRiskCount} high-risk cases escalated`;
+      }
+      
       toast({
         title: "POS Data Uploaded",
-        description: result.message,
+        description,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });

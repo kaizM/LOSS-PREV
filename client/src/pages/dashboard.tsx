@@ -9,6 +9,7 @@ import UploadSection from "@/components/upload-section";
 import FilterControls from "@/components/filter-controls";
 import TransactionTable from "@/components/transaction-table";
 import CameraIntegration from "@/components/camera-integration";
+import { BulkAIAnalysisDisplay } from "@/components/ai-analysis-display";
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -100,7 +101,14 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
-          <StatsOverview />
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3">
+              <StatsOverview />
+            </div>
+            <div className="lg:col-span-1">
+              <BulkAIAnalysisDisplay />
+            </div>
+          </div>
           
           <Tabs defaultValue="transactions" className="w-full">
             <TabsList className="grid w-full grid-cols-3">

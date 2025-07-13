@@ -8,6 +8,7 @@ import fs from "fs";
 import { parse } from "csv-parse";
 import session from "express-session";
 import crypto from "crypto";
+import { aiAnalyzer } from "./ai-analysis";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -414,6 +415,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Run AI analysis on flagged transactions
+      let aiAnalysisResults = null;
+      if (createdTransactions.length > 0) {
+        try {
+          console.log(`Running AI analysis on ${createdTransactions.length} flagged transactions...`);
+          aiAnalysisResults = await aiAnalyzer.analyzeBulkTransactions(createdTransactions);
+          
+          // Update high-risk transactions
+          for (const result of aiAnalysisResults.results) {
+            const transaction = createdTransactions.find(t => t.transactionId === result.transactionId);
+            if (transaction && result.suspiciousScore >= 80) {
+              await storage.updateTransactionStatus(
+                transaction.id,
+                'escalate',
+                'AI-System',
+                'AI Analysis - High Risk'
+              );
+            }
+          }
+          
+          console.log(`AI Analysis: ${aiAnalysisResults.summary.totalSuspicious} suspicious, ${aiAnalysisResults.summary.highRiskCount} high-risk`);
+        } catch (aiError) {
+          console.error('AI Analysis failed:', aiError);
+        }
+      }
+      
       // Clean up uploaded file
       fs.unlinkSync(filePath);
       
@@ -422,6 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transactions: createdTransactions,
         totalProcessed: processedCount,
         flaggedCount: createdTransactions.length,
+        aiAnalysis: aiAnalysisResults?.summary || null,
       });
     } catch (error) {
       console.error("Error processing POS data:", error);
@@ -569,6 +597,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         connected: false, 
         message: "Failed to test camera connection" 
       });
+    }
+  });
+
+  // AI Analysis endpoints
+  app.post('/api/ai/analyze-transaction', noAuth, async (req: any, res) => {
+    try {
+      const { transactionId } = req.body;
+      
+      const transaction = await storage.getTransaction(transactionId);
+      if (!transaction) {
+        return res.status(404).json({ message: 'Transaction not found' });
+      }
+      
+      // Get recent transactions for context
+      const recentTransactions = await storage.getTransactions();
+      
+      const analysis = await aiAnalyzer.analyzeTransaction(transaction, recentTransactions.transactions);
+      
+      res.json({
+        transactionId,
+        analysis,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      res.status(500).json({ message: 'Failed to analyze transaction' });
+    }
+  });
+
+  app.post('/api/ai/bulk-analyze', noAuth, async (req: any, res) => {
+    try {
+      const { filters = {} } = req.body;
+      
+      const result = await storage.getTransactions(filters);
+      
+      if (result.transactions.length === 0) {
+        return res.json({ message: 'No transactions found to analyze' });
+      }
+      
+      const analysis = await aiAnalyzer.analyzeBulkTransactions(result.transactions);
+      
+      res.json({
+        totalAnalyzed: result.transactions.length,
+        analysis,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Bulk AI analysis error:', error);
+      res.status(500).json({ message: 'Failed to analyze transactions' });
     }
   });
 

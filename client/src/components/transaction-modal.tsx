@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { CheckCircle, AlertTriangle, Flag, Play, Pause, SkipBack, SkipForward, X } from "lucide-react";
+import { AIAnalysisDisplay } from "./ai-analysis-display";
 import type { Transaction } from "@shared/schema";
 
 interface TransactionModalProps {
@@ -141,7 +142,7 @@ export default function TransactionModal({ transaction, isOpen, onClose }: Trans
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Transaction Details */}
               <Card>
                 <CardHeader>
@@ -188,6 +189,9 @@ export default function TransactionModal({ transaction, isOpen, onClose }: Trans
                   </div>
                 </CardContent>
               </Card>
+
+              {/* AI Analysis */}
+              <AIAnalysisDisplay transactionId={transaction.transactionId} />
 
               {/* Video Player */}
               <Card>
