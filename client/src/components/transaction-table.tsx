@@ -98,6 +98,21 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
     }
   };
 
+  // Group transactions by date
+  const groupTransactionsByDate = (transactions: Transaction[]) => {
+    const groups = new Map<string, Transaction[]>();
+    
+    transactions.forEach(transaction => {
+      const dateKey = format(new Date(transaction.date), 'yyyy-MM-dd');
+      if (!groups.has(dateKey)) {
+        groups.set(dateKey, []);
+      }
+      groups.get(dateKey)!.push(transaction);
+    });
+    
+    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  };
+
   if (error) {
     return (
       <Card className="bg-white rounded-lg shadow">
@@ -161,70 +176,88 @@ export default function TransactionTable({ filters }: TransactionTableProps) {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data?.transactions.map((transaction) => (
-                    <TableRow key={transaction.id} className="hover:bg-gray-50">
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedTransactions.includes(transaction.id)}
-                          onCheckedChange={() => handleTransactionSelect(transaction.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-gray-900">
-                          {format(new Date(transaction.date), "yyyy-MM-dd")}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {format(new Date(transaction.date), "HH:mm:ss")}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-900">
-                        {transaction.registerId}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-900">
-                        {transaction.employeeName}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getTransactionTypeBadgeVariant(transaction.transactionType)}>
-                          {transaction.transactionType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-900 font-medium">
-                        ${parseFloat(transaction.amount).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusBadgeVariant(transaction.status)}>
-                          {transaction.status === "pending" ? "Pending Review" : transaction.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <PlayCircle className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleReviewTransaction(transaction)}
-                            className="text-primary hover:text-primary/80"
-                          >
-                            Review
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-gray-600 hover:text-gray-800"
-                          >
-                            <StickyNote className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                  groupTransactionsByDate(data?.transactions || []).map(([dateKey, transactions]) => (
+                    <>
+                      {/* Date Header Row */}
+                      <TableRow key={`date-${dateKey}`} className="bg-blue-50">
+                        <TableCell colSpan={9} className="py-3 px-6">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-blue-900">
+                              {format(new Date(dateKey), 'EEEE, MMMM d, yyyy')}
+                            </h3>
+                            <Badge className="bg-blue-100 text-blue-800">
+                              {transactions.length} transactions
+                            </Badge>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {/* Transactions for this date */}
+                      {transactions.map((transaction) => (
+                        <TableRow key={transaction.id} className="hover:bg-gray-50">
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedTransactions.includes(transaction.id)}
+                              onCheckedChange={() => handleTransactionSelect(transaction.id)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-gray-900">
+                              {format(new Date(transaction.date), "HH:mm:ss")}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {transaction.transactionId}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-900">
+                            {transaction.registerId}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-900">
+                            {transaction.employeeName}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getTransactionTypeBadgeVariant(transaction.transactionType)}>
+                              {transaction.transactionType}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-900 font-medium">
+                            ${parseFloat(transaction.amount).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadgeVariant(transaction.status)}>
+                              {transaction.status === "pending" ? "Pending Review" : transaction.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-primary hover:text-primary/80"
+                            >
+                              <PlayCircle className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleReviewTransaction(transaction)}
+                                className="text-primary hover:text-primary/80"
+                              >
+                                Review
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-600 hover:text-gray-800"
+                              >
+                                <StickyNote className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   ))
                 )}
               </TableBody>
