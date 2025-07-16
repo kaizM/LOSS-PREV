@@ -283,59 +283,77 @@ export function BulkAIAnalysisDisplay({ className = '' }: { className?: string }
 
         {analysisResult && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {analysisResult.analysis.summary.totalSuspicious}
-                </div>
-                <div className="text-xs text-muted-foreground">Suspicious</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">
-                  {analysisResult.analysis.summary.highRiskCount}
-                </div>
-                <div className="text-xs text-muted-foreground">High Risk</div>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium flex items-center">
-                <AlertTriangle className="h-4 w-4 mr-1" />
-                Common Issues
-              </h4>
-              <div className="flex flex-wrap gap-1">
-                {analysisResult.analysis.summary.commonFlags.slice(0, 6).map((flag: string, index: number) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {flag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {analysisResult.analysis.summary.employeeRisks.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium flex items-center">
-                  <Users className="h-4 w-4 mr-1" />
-                  Employee Risk Analysis
-                </h4>
-                <div className="space-y-1">
-                  {analysisResult.analysis.summary.employeeRisks.slice(0, 3).map((employee: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center text-xs">
-                      <span>{employee.employee}</span>
-                      <Badge variant={employee.riskScore >= 70 ? 'destructive' : employee.riskScore >= 40 ? 'default' : 'secondary'}>
-                        {employee.riskScore}
-                      </Badge>
+            {analysisResult.message ? (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {analysisResult.message}
+                </AlertDescription>
+              </Alert>
+            ) : analysisResult.analysis && analysisResult.analysis.summary ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {analysisResult.analysis.summary.totalSuspicious}
                     </div>
-                  ))}
+                    <div className="text-xs text-muted-foreground">Suspicious</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {analysisResult.analysis.summary.highRiskCount}
+                    </div>
+                    <div className="text-xs text-muted-foreground">High Risk</div>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            <p className="text-xs text-muted-foreground">
-              Analysis completed: {new Date(analysisResult.timestamp).toLocaleString()}
-            </p>
+                <Separator />
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    Common Issues
+                  </h4>
+                  <div className="flex flex-wrap gap-1">
+                    {analysisResult.analysis.summary.commonFlags.slice(0, 6).map((flag: string, index: number) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {flag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {analysisResult.analysis.summary.employeeRisks.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium flex items-center">
+                      <Users className="h-4 w-4 mr-1" />
+                      Employee Risk Analysis
+                    </h4>
+                    <div className="space-y-1">
+                      {analysisResult.analysis.summary.employeeRisks.slice(0, 3).map((employee: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center text-xs">
+                          <span>{employee.employee}</span>
+                          <Badge variant={employee.riskScore >= 70 ? 'destructive' : employee.riskScore >= 40 ? 'default' : 'secondary'}>
+                            {employee.riskScore}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Analysis completed: {new Date(analysisResult.timestamp).toLocaleString()}
+                </p>
+              </>
+            ) : (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Unable to display analysis results. Please try again.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
       </CardContent>
