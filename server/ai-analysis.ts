@@ -1,8 +1,8 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import type { Transaction } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+// Initialize Google Gemini AI
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
 interface AIAnalysisResult {
   isSuspicious: boolean;
@@ -27,9 +27,9 @@ export class AITransactionAnalyzer {
   private transactionPatterns: Map<string, TransactionPattern> = new Map();
 
   async analyzeTransaction(transaction: Transaction, recentTransactions: Transaction[]): Promise<AIAnalysisResult> {
-    // If OpenAI is not available, use fallback analysis
-    if (!openai) {
-      console.warn('OpenAI API key not available, using fallback analysis');
+    // If Gemini is not available, use fallback analysis
+    if (!gemini) {
+      console.warn('Gemini API key not available, using fallback analysis');
       return this.fallbackAnalysis(transaction);
     }
 
@@ -67,24 +67,27 @@ Respond in JSON format:
   "recommendations": ["action 1", "action 2"]
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a gas station loss prevention AI expert. Analyze transactions for fraud, theft, and suspicious employee behavior. Focus on patterns specific to gas station environments."
-          },
-          {
-            role: "user",
-            content: prompt
+      const response = await gemini.models.generateContent({
+        model: "gemini-2.5-flash",
+        config: {
+          systemInstruction: "You are a gas station loss prevention AI expert. Analyze transactions for fraud, theft, and suspicious employee behavior. Focus on patterns specific to gas station environments.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "object",
+            properties: {
+              isSuspicious: { type: "boolean" },
+              suspiciousScore: { type: "number" },
+              flags: { type: "array", items: { type: "string" } },
+              explanation: { type: "string" },
+              recommendations: { type: "array", items: { type: "string" } }
+            },
+            required: ["isSuspicious", "suspiciousScore", "flags", "explanation", "recommendations"]
           }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.3, // Lower temperature for more consistent analysis
-        max_tokens: 1500
+        },
+        contents: prompt
       });
 
-      const analysis = JSON.parse(response.choices[0].message.content || "{}");
+      const analysis = JSON.parse(response.text || "{}");
       
       return {
         isSuspicious: analysis.isSuspicious || false,
@@ -97,17 +100,17 @@ Respond in JSON format:
     } catch (error) {
       console.error('AI Analysis Error:', error);
       
-      // Check if it's a quota error
-      if (error.code === 'insufficient_quota') {
+      // Check if it's a quota/rate limit error
+      if (error.status === 429 || (error.message && (error.message.includes('quota') || error.message.includes('rate limit')))) {
         return {
           isSuspicious: false,
           suspiciousScore: 0,
-          flags: ['quota_exceeded'],
-          explanation: "OpenAI API quota exceeded. Please check your billing and usage limits at https://platform.openai.com/account/billing",
+          flags: ['rate_limit_exceeded'],
+          explanation: "Google Gemini API rate limit exceeded (10 requests per minute). The analysis will work again in a few minutes.",
           recommendations: [
-            "Add more credits to your OpenAI account",
-            "Check your usage at https://platform.openai.com/account/usage",
-            "Upgrade your OpenAI plan if needed"
+            "Wait 1-2 minutes and try again",
+            "Free tier allows 10 requests per minute",
+            "Upgrade to paid tier for higher limits"
           ]
         };
       }

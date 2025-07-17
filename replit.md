@@ -169,4 +169,7 @@ The application is designed to be deployed on Replit with automatic database pro
 - Configured camera feed URLs for ALIBI DVR: snapshot and stream endpoints
 - System now properly handles API key quota limits with fallback to rule-based analysis
 - **RESOLVED**: Fixed individual transaction AI analysis (was passing wrong ID type to backend)
-- **Active Issue**: User's OpenAI API key has exceeded quota - needs billing account top-up
+- **RESOLVED**: Migrated from OpenAI to Google Gemini AI for cost-free transaction analysis
+- **NEW**: Google Gemini integration provides free AI analysis (10 requests/minute, 1,500/day)
+- **NEW**: Intelligent rate limiting with clear user guidance when limits are reached
+- System now operates completely free with powerful AI analysis capabilities
