@@ -605,7 +605,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { transactionId } = req.body;
       
-      const transaction = await storage.getTransaction(transactionId);
+      // Convert transactionId to integer if it's a string number
+      const id = parseInt(transactionId);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid transaction ID' });
+      }
+      
+      const transaction = await storage.getTransaction(id);
       if (!transaction) {
         return res.status(404).json({ message: 'Transaction not found' });
       }
@@ -616,7 +622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const analysis = await aiAnalyzer.analyzeTransaction(transaction, recentTransactions.transactions);
       
       res.json({
-        transactionId,
+        transactionId: id,
         analysis,
         timestamp: new Date().toISOString()
       });

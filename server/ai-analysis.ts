@@ -96,6 +96,22 @@ Respond in JSON format:
 
     } catch (error) {
       console.error('AI Analysis Error:', error);
+      
+      // Check if it's a quota error
+      if (error.code === 'insufficient_quota') {
+        return {
+          isSuspicious: false,
+          suspiciousScore: 0,
+          flags: ['quota_exceeded'],
+          explanation: "OpenAI API quota exceeded. Please check your billing and usage limits at https://platform.openai.com/account/billing",
+          recommendations: [
+            "Add more credits to your OpenAI account",
+            "Check your usage at https://platform.openai.com/account/usage",
+            "Upgrade your OpenAI plan if needed"
+          ]
+        };
+      }
+      
       // Fallback to basic rule-based analysis
       return this.fallbackAnalysis(transaction);
     }
