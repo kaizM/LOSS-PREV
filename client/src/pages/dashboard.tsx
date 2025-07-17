@@ -9,6 +9,7 @@ import UploadSection from "@/components/upload-section";
 import FilterControls from "@/components/filter-controls";
 import TransactionTable from "@/components/transaction-table";
 import CameraIntegration from "@/components/camera-integration";
+import CameraFeedTest from "@/components/camera-feed-test";
 import { BulkAIAnalysisDisplay } from "@/components/ai-analysis-display";
 
 export default function Dashboard() {
@@ -111,7 +112,7 @@ export default function Dashboard() {
           </div>
           
           <Tabs defaultValue="transactions" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
               <TabsTrigger value="upload">
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -120,6 +121,10 @@ export default function Dashboard() {
               <TabsTrigger value="cameras">
                 <Camera className="h-4 w-4 mr-2" />
                 Camera System
+              </TabsTrigger>
+              <TabsTrigger value="feed-test">
+                <Camera className="h-4 w-4 mr-2" />
+                Feed Test
               </TabsTrigger>
             </TabsList>
             
@@ -134,6 +139,10 @@ export default function Dashboard() {
             
             <TabsContent value="cameras" className="space-y-6">
               <CameraIntegration />
+            </TabsContent>
+            
+            <TabsContent value="feed-test" className="space-y-6">
+              <CameraFeedTest />
             </TabsContent>
           </Tabs>
         </div>
