@@ -191,7 +191,7 @@ export default function TransactionModal({ transaction, isOpen, onClose }: Trans
               </Card>
 
               {/* AI Analysis */}
-              <AIAnalysisDisplay transactionId={transaction.transactionId} />
+              <AIAnalysisDisplay transactionId={transaction.id.toString()} />
 
               {/* Video Player */}
               <Card>

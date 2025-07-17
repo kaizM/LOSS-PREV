@@ -168,4 +168,5 @@ The application is designed to be deployed on Replit with automatic database pro
 - Added proper error handling for bulk AI analysis display when no transactions exist
 - Configured camera feed URLs for ALIBI DVR: snapshot and stream endpoints
 - System now properly handles API key quota limits with fallback to rule-based analysis
+- **RESOLVED**: Fixed individual transaction AI analysis (was passing wrong ID type to backend)
 - **Active Issue**: User's OpenAI API key has exceeded quota - needs billing account top-up

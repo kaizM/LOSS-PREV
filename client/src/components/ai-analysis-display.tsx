@@ -17,7 +17,7 @@ interface AIAnalysisResult {
 }
 
 interface AIAnalysisProps {
-  transactionId?: string;
+  transactionId?: string | number;
   className?: string;
 }
 
